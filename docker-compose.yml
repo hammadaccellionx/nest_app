@@ -1,0 +1,43 @@
+version: "3"
+
+services:
+  nest_app:
+    build: .
+    container_name: nest_app
+    # Expose whatever port Nest runs on, e.g. 3000
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - loki
+    # volumes optional for your app code & logs
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki:/etc/loki
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: grafana
+    ports:
+      - "3001:3000"    # Note: using host 3001 to avoid clash with Nest app on 3000
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      # Link Grafana to Loki as data source
+      - GF_PLUGINS_ENABLE_ALPHA_FEATURES=true
+      - GF_DATA_SOURCE_LOKI_URL=http://loki:3100
+    depends_on:
+      - loki
+    volumes:
+      - ./grafana:/var/lib/grafana
+    restart: unless-stopped
